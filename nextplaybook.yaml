@@ -36,6 +36,14 @@
     - name: Update apt and install docker-ce
       apt: update_cache=yes name=docker-ce state=latest
 
+    - name: setuptools
+      apt:
+        name: python-setuptools
+
+    - name: pip
+      apt:
+        name: python-pip
+
     - name: Install Docker Module for Python
       pip:
         name: docker
@@ -52,6 +60,34 @@
         command: "{{ container_command }}"
         state: present
       with_sequence: count={{ containers }}
+  
+    - name: Ensure the jenkins apt repository key is installed
+      apt_key: 
+        url: https://pkg.jenkins.io/debian-stable/jenkins.io.key
+      become: yes
+
+    - name: ensure the repository is configured
+      apt_repository: repo='deb https://pkg.jenkins.io/debian-stable binary/' state=present
+      become: yes
+
+    - name: ensure jenkins is installed
+      apt: name=jenkins update_cache=yes
+      become: yes
+
+    - name: ensure jenkins is running
+      service: name=jenkins state=started
+
+    - name: Sleep for 30 seconds and continue with play
+      wait_for: timeout=30
+
+    - name: Get init password Jenkins
+      shell: cat /var/lib/jenkins/secrets/initialAdminPassword
+      changed_when: false
+      register: result
+
+    - name: Print init password Jenkins
+      debug:
+        var: result.stdout
 - hosts: docker_vm
   become: true
   vars:
